@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32228.430
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "appsvc_fnc_dev_teamslink", "appsvc_fnc_dev_teamslink\appsvc_fnc_dev_teamslink.csproj", "{869605E4-0749-4C3D-90CE-F1B50F85D5E8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{869605E4-0749-4C3D-90CE-F1B50F85D5E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{869605E4-0749-4C3D-90CE-F1B50F85D5E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{869605E4-0749-4C3D-90CE-F1B50F85D5E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{869605E4-0749-4C3D-90CE-F1B50F85D5E8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {90D60869-9FEE-4853-8C02-7448C8E3A90A}
+	EndGlobalSection
+EndGlobal
