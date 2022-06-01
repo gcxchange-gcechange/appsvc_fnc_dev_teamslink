@@ -15,14 +15,10 @@ using System.Text.RegularExpressions;
 
 namespace appsvc_fnc_dev_teamslink
 {
-
     public static class GetTeamsLink
     {
-
-
-        [FunctionName("GetTeamsLink")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+        [FunctionName("GetTeamsLink")] 
+            public static async Task<IActionResult> Run([TimerTrigger("0 0 7-18/2 * * 1-5")] TimerInfo myTimer, HttpRequest req,
             ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
@@ -34,10 +30,10 @@ namespace appsvc_fnc_dev_teamslink
             var exceptionGroupsArray = config["exceptionGroupsArray"];
             var siteId = config["siteId"];
             var listId = config["listId"];
+            var tenantid = config["tenantid"];
 
             Auth auth = new Auth();
             var graphClient = auth.graphAuth(log);
-
             var UpdateList = new ListItemsCollectionPage();
             List<CreateItem> CreateList = new List<CreateItem>();
 
@@ -74,7 +70,7 @@ namespace appsvc_fnc_dev_teamslink
                         {
                             if (channel.DisplayName == "General")
                             {
-                                url = "https://teams.microsoft.com/_#/conversations/General?threadId=" + channel.Id;
+                                url = "https://teams.microsoft.com/_#/l/team/" + channel.Id + "/conversations?groupId=" + group.Id + "&tenantId=" + tenantid;
                             }
                         };
 
