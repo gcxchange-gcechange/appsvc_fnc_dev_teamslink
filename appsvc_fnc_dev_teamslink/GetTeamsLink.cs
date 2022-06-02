@@ -17,8 +17,9 @@ namespace appsvc_fnc_dev_teamslink
 {
     public static class GetTeamsLink
     {
-        [FunctionName("GetTeamsLink")] 
-            public static async Task<IActionResult> Run([TimerTrigger("0 0 7-18/2 * * 1-5")] TimerInfo myTimer, HttpRequest req,
+        [FunctionName("GetTeamsLink")]
+        //0 0 7-18/2 * * 1-5
+        public static async Task<IActionResult> Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, HttpRequest req,
             ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
