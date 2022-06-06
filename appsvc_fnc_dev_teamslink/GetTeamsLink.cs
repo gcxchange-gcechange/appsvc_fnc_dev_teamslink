@@ -19,7 +19,7 @@ namespace appsvc_fnc_dev_teamslink
     {
         [FunctionName("GetTeamsLink")]
         //0 0 7-18/2 * * 1-5
-        public static async Task<IActionResult> Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, HttpRequest req,
+ public static async Task RunAsync([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, HttpRequest req,
             ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
@@ -152,7 +152,7 @@ namespace appsvc_fnc_dev_teamslink
             }
 
             string responseMessage = "Success";
-            return new OkObjectResult(responseMessage);
+           // return new OkObjectResult(responseMessage);
         }
     }
 }
