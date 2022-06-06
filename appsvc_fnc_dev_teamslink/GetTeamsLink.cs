@@ -19,7 +19,7 @@ namespace appsvc_fnc_dev_teamslink
     {
         [FunctionName("GetTeamsLink")]
         //0 0 7-18/2 * * 1-5
-        public static async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, ILogger log)
+        public static async Task Run([TimerTrigger("0 0 7-18/2 * * 1-5")] TimerInfo myTimer, ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
 
