@@ -18,8 +18,8 @@ namespace appsvc_fnc_dev_teamslink
     public static class GetTeamsLink
     {
         [FunctionName("GetTeamsLink")]
-        //0 0 7-18/2 * * 1-5
-        public static async Task Run([TimerTrigger("0 0 7-18/2 * * 1-5")] TimerInfo myTimer, ILogger log)
+        //Timezone UTC universal
+        public static async Task Run([TimerTrigger("0 0 10-21/2 * * 1-5")] TimerInfo myTimer, ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
 
