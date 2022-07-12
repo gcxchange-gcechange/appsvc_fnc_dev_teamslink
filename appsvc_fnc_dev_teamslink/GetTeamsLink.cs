@@ -41,21 +41,42 @@ namespace appsvc_fnc_dev_teamslink
             {
                 new QueryOption("expand", "fields(select=TeamsID,Teamslink)")
             };
-
+            List<ListItem> items = new List<ListItem>();
             var AllTeamsItems = await graphClient.Sites[siteId].Lists[listId].Items
             .Request(queryOptions)
+            .Top(999)
             .GetAsync();
 
+            items.AddRange(AllTeamsItems.CurrentPage.OfType<ListItem>());
+            // fetch next page
+            while (AllTeamsItems.NextPageRequest != null)
+            {
+                AllTeamsItems = await AllTeamsItems.NextPageRequest.GetAsync();
+                items.AddRange(AllTeamsItems.CurrentPage.OfType<ListItem>());
+            }
+
+
+
+            var groups = new List<Microsoft.Graph.Group>();
             var listgroups = await graphClient.Groups
                 .Request()
                 .Select("id,resourceProvisioningOptions")
+                .Top(999)
                 .GetAsync();
 
-            foreach (var group in listgroups)
+            groups.AddRange(listgroups.CurrentPage.OfType<Microsoft.Graph.Group>());
+            // fetch next page
+            while (listgroups.NextPageRequest != null)
+            {
+                listgroups = await listgroups.NextPageRequest.GetAsync();
+                groups.AddRange(listgroups.CurrentPage.OfType<Microsoft.Graph.Group>());
+            }
+
+            foreach (var group in groups)
             {
                 var StringTeamsOptions = group.AdditionalData["resourceProvisioningOptions"].ToString();
                 var CleanStringTeamsOptions = Regex.Replace(StringTeamsOptions, "[^a-zA-Z]", string.Empty);
-     
+
                 if (CleanStringTeamsOptions == "Team")
                 {
                     if (exceptionGroupsArray.Contains(group.Id) == false)
@@ -63,7 +84,7 @@ namespace appsvc_fnc_dev_teamslink
                         var channels = await graphClient.Teams[group.Id].Channels
                         .Request()
                         .GetAsync();
-                       
+
                         var url = "";
 
                         foreach (var channel in channels)
@@ -81,7 +102,7 @@ namespace appsvc_fnc_dev_teamslink
                         }
                         CreateList.Add(new CreateItem { Url = url, ID = group.Id });
 
-                        foreach (var item in AllTeamsItems)
+                        foreach (var item in items)
                         {
                             //compare group id to the sharepoint list
                             if (item.Fields.AdditionalData["TeamsID"].ToString() == group.Id)
@@ -94,7 +115,7 @@ namespace appsvc_fnc_dev_teamslink
                                     UpdateList.Add(item);
                                 }
                                 //remove from the all list
-                                
+
                                 AllTeamsItems.Remove(item);
                                 var item1 = CreateList.SingleOrDefault(x => x.ID == group.Id);
                                 CreateList.Remove(item1);
