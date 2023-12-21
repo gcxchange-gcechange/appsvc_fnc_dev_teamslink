@@ -17,9 +17,16 @@ namespace appsvc_fnc_dev_teamslink
 {
     public static class GetTeamsLink
     {
+        // Timezone UTC universal
+
+        // previous: "0 0 10-21/2 * * 1-5"
+        // At minute 0 past every 2nd hour from 10 through 21 on every day-of-week from Monday through Friday.
+
+        // current: "0 0 6 * * 1"
+        // At 06:00 on Monday.
+
         [FunctionName("GetTeamsLink")]
-        //Timezone UTC universal
-        public static async Task Run([TimerTrigger("0 0 10-21/2 * * 1-5")] TimerInfo myTimer, ILogger log)
+        public static async Task Run([TimerTrigger("0 0 6 * * 1")] TimerInfo myTimer, ILogger log)
         {
             IConfiguration config = new ConfigurationBuilder()
 
