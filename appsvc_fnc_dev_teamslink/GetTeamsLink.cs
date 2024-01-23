@@ -1,28 +1,24 @@
-using System;
-using System.IO;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Graph;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Graph.Models;
+using Microsoft.Kiota.Abstractions;
 
 namespace appsvc_fnc_dev_teamslink
 {
     public static class GetTeamsLink
     {
+        // Runs at 06:00 on Sunday
         [FunctionName("GetTeamsLink")]
-        //Timezone UTC universal
-        public static async Task Run([TimerTrigger("0 0 10-21/2 * * 1-5")] TimerInfo myTimer, ILogger log)
+        public static async Task Run([TimerTrigger("0 0 6 * * 0")] TimerInfo myTimer, ILogger log)
         {
-            IConfiguration config = new ConfigurationBuilder()
+            log.LogInformation("GetTeamsLink received a request.");
 
+            IConfiguration config = new ConfigurationBuilder()
            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
            .AddEnvironmentVariables()
            .Build();
@@ -34,44 +30,63 @@ namespace appsvc_fnc_dev_teamslink
 
             Auth auth = new Auth();
             var graphClient = auth.graphAuth(log);
-            var UpdateList = new ListItemsCollectionPage();
-            List<CreateItem> CreateList = new List<CreateItem>();
 
-            var queryOptions = new List<QueryOption>()
-            {
-                new QueryOption("expand", "fields(select=TeamsID,Teamslink)")
-            };
-            List<ListItem> items = new List<ListItem>();
-            var AllTeamsItems = await graphClient.Sites[siteId].Lists[listId].Items
-            .Request(queryOptions)
-            .Top(999)
-            .GetAsync();
+            List<CreateItem> CreateList = new();
+            List<Microsoft.Graph.Models.Group> groups = new();
+            List<ListItem> items = new();
+            List<ListItem> UpdateList = new();
 
-            items.AddRange(AllTeamsItems.CurrentPage.OfType<ListItem>());
-            // fetch next page
-            while (AllTeamsItems.NextPageRequest != null)
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Get items from TeamsLink list                                                                          //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            var listitems = await graphClient.Sites[siteId].Lists[listId].Items.GetAsync((requestConfiguration) =>
             {
-                AllTeamsItems = await AllTeamsItems.NextPageRequest.GetAsync();
-                items.AddRange(AllTeamsItems.CurrentPage.OfType<ListItem>());
+                requestConfiguration.QueryParameters.Expand = new string[] { "fields($select=TeamsID,Teamslink)" };
+                requestConfiguration.QueryParameters.Top = 999;
+            });
+
+            items.AddRange(listitems.Value);
+
+            // fetch next page(s)
+            while (listitems.OdataNextLink != null)
+            {
+                var nextPageRequestInformation = new RequestInformation
+                {
+                    HttpMethod = Method.GET,
+                    UrlTemplate = listitems.OdataNextLink
+                };
+
+                listitems = await graphClient.RequestAdapter.SendAsync(nextPageRequestInformation, (parseNode) => new ListItemCollectionResponse());
+                items.AddRange(listitems.Value);
             }
 
-
-
-            var groups = new List<Microsoft.Graph.Group>();
-            var listgroups = await graphClient.Groups
-                .Request()
-                .Select("id,resourceProvisioningOptions")
-                .Top(999)
-                .GetAsync();
-
-            groups.AddRange(listgroups.CurrentPage.OfType<Microsoft.Graph.Group>());
-            // fetch next page
-            while (listgroups.NextPageRequest != null)
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Get groups from tenant                                                                                 //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            var listgroups = await graphClient.Groups.GetAsync((requestConfiguration) =>
             {
-                listgroups = await listgroups.NextPageRequest.GetAsync();
-                groups.AddRange(listgroups.CurrentPage.OfType<Microsoft.Graph.Group>());
+                requestConfiguration.QueryParameters.Select = new string[] { "id,resourceProvisioningOptions" };
+                requestConfiguration.QueryParameters.Top = 999;
+            });
+
+            groups.AddRange(listgroups.Value);
+
+            // fetch next page(s)
+            while (listgroups.OdataNextLink != null)
+            {
+                var nextPageRequestInformation = new RequestInformation
+                {
+                    HttpMethod = Method.GET,
+                    UrlTemplate = listgroups.OdataNextLink
+                };
+
+                listgroups = await graphClient.RequestAdapter.SendAsync(nextPageRequestInformation, (parseNode) => new GroupCollectionResponse());
+                groups.AddRange(listgroups.Value);
             }
 
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Iterate through collection of groups                                                                   //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             foreach (var group in groups)
             {
                 var StringTeamsOptions = group.AdditionalData["resourceProvisioningOptions"].ToString();
@@ -81,13 +96,10 @@ namespace appsvc_fnc_dev_teamslink
                 {
                     if (exceptionGroupsArray.Contains(group.Id) == false)
                     {
-                        var channels = await graphClient.Teams[group.Id].Channels
-                        .Request()
-                        .GetAsync();
-
+                        var channels = await graphClient.Teams[group.Id].Channels.GetAsync();
                         var url = "";
 
-                        foreach (var channel in channels)
+                        foreach (var channel in channels.Value)
                         {
                             if (channel.DisplayName == "General")
                             {
@@ -98,9 +110,10 @@ namespace appsvc_fnc_dev_teamslink
                         // If no General channel found, take first channel
                         if (url == "")
                         {
-                            url = "https://teams.microsoft.com/_#/conversations/" + channels[0].DisplayName + "?threadId=" + channels[0].Id;
+                            url = "https://teams.microsoft.com/_#/conversations/" + channels.Value[0].DisplayName + "?threadId=" + channels.Value[0].Id;
                         }
-                        CreateList.Add(new CreateItem { Url = url, ID = group.Id });
+                        
+                        CreateList.Add(new CreateItem {Url = url, Id = group.Id});
 
                         foreach (var item in items)
                         {
@@ -110,14 +123,15 @@ namespace appsvc_fnc_dev_teamslink
                                 //compare the url
                                 if (item.Fields.AdditionalData["Teamslink"].ToString() != url)
                                 {
-                                    //add to the list to be update
+                                    //add to the list to be updated
                                     item.Fields.AdditionalData["Teamslink"] = url;
                                     UpdateList.Add(item);
                                 }
-                                //remove from the all list
 
-                                AllTeamsItems.Remove(item);
-                                var item1 = CreateList.SingleOrDefault(x => x.ID == group.Id);
+                                //remove from the items collection
+                                items.Remove(item);
+
+                                var item1 = CreateList.SingleOrDefault(x => x.Id == group.Id);
                                 CreateList.Remove(item1);
                                 break;
                             }
@@ -126,9 +140,12 @@ namespace appsvc_fnc_dev_teamslink
                 }
             }
 
-            //function to update all item
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Update items in UpdateList                                                                             //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             foreach (var item in UpdateList)
             {
+                log.LogInformation($"Updated item.Id: {item.Id}");
                 var Fields = new FieldValueSet
                 {
                     AdditionalData = new Dictionary<string, object>()
@@ -138,41 +155,38 @@ namespace appsvc_fnc_dev_teamslink
                     }
                 };
 
-                await graphClient.Sites[siteId].Lists[listId].Items[item.Id].Fields
-                    .Request()
-                    .UpdateAsync(Fields);
+                await graphClient.Sites[siteId].Lists[listId].Items[item.Id].Fields.PatchAsync(Fields);
             }
 
-            //Function to create all item
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Add items in CreateList                                                                                //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             foreach (var item in CreateList)
             {
+                log.LogInformation($"Created item.Id: {item.Id}");
                 var listItem = new ListItem
                 {
                     Fields = new FieldValueSet
                     {
                         AdditionalData = new Dictionary<string, object>()
                         {
-                          
-                            {"TeamsID", item.ID},
+                            {"TeamsID", item.Id},
                             {"Teamslink", item.Url}
                         }
                     }
                 };
-                await graphClient.Sites[siteId].Lists[listId].Items
-                    .Request()
-                    .AddAsync(listItem);
+
+                await graphClient.Sites[siteId].Lists[listId].Items.PostAsync(listItem);
             }
 
-            //Function to delete all item from all list
-            foreach (var item in AllTeamsItems)
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            // Delete remaining items                                                                                 //
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            foreach (var item in items)
             {
-                await graphClient.Sites[siteId].Lists[listId].Items[item.Id]
-                .Request()
-                .DeleteAsync();
+                log.LogInformation($"Deleted item.Id: {item.Id}");
+                await graphClient.Sites[siteId].Lists[listId].Items[item.Id].DeleteAsync();
             }
-
-            string responseMessage = "Success";
-            //return new OkObjectResult(responseMessage);
         }
     }
 }
