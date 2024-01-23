@@ -42,7 +42,7 @@ namespace appsvc_fnc_dev_teamslink
             var listitems = await graphClient.Sites[siteId].Lists[listId].Items.GetAsync((requestConfiguration) =>
             {
                 requestConfiguration.QueryParameters.Expand = new string[] { "fields($select=TeamsID,Teamslink)" };
-                requestConfiguration.QueryParameters.Top = 10;  // 999
+                requestConfiguration.QueryParameters.Top = 999;
             });
 
             items.AddRange(listitems.Value);
