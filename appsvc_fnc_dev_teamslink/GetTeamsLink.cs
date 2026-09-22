@@ -103,52 +103,60 @@ namespace appsvc_fnc_dev_teamslink
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////
             foreach (var group in groups)
             {
-                if (exceptionGroupsArray.Contains(group.Id) == false)
+                try
                 {
-                    var channels = await graphClient.Teams[group.Id].Channels.GetAsync();
-                    var url = "";
-
-                    foreach (var channel in channels.Value)
+                    if (exceptionGroupsArray.Contains(group.Id) == false)
                     {
-                        if (channel.DisplayName == "General")
+                        var channels = await graphClient.Teams[group.Id].Channels.GetAsync();
+                        var url = "";
+
+                        foreach (var channel in channels.Value)
                         {
-                            url = "https://teams.microsoft.com/#/l/team/" + channel.Id + "/conversations?groupId=" + group.Id + "&tenantId=" + tenantid;
-                        }
-                    };
-
-                    // if no General channel found, take first channel
-                    if (url == "")
-                    {
-                        url = "https://teams.microsoft.com/#/l/conversations/" + channels.Value[0].DisplayName + "?threadId=" + channels.Value[0].Id;
-                    }
-
-                    CreateList.Add(new CreateItem { Url = url, ID = group.Id });
-
-                    foreach (var item in items)
-                    {
-                        //compare group id to the sharepoint list
-                        if (item.Fields.AdditionalData["TeamsID"].ToString() == group.Id)
-                        {
-                            //compare the url
-                            if (item.Fields.AdditionalData["Teamslink"].ToString() != url)
+                            if (channel.DisplayName == "General")
                             {
-                                //add to the list to be updated
-                                item.Fields.AdditionalData["Teamslink"] = url;
-                                UpdateList.Add(item);
+                                url = "https://teams.microsoft.com/#/l/team/" + channel.Id + "/conversations?groupId=" + group.Id + "&tenantId=" + tenantid;
                             }
-
-                            //remove from the items collection
-                            items.Remove(item);
-
-                            var item1 = CreateList.SingleOrDefault(x => x.ID == group.Id);
-                            CreateList.Remove(item1);
-                            break;
                         }
+
+                        // if no General channel found, take first channel
+                        if (url == "")
+                        {
+                            url = "https://teams.microsoft.com/#/l/conversations/" + channels.Value[0].DisplayName + "?threadId=" + channels.Value[0].Id;
+                        }
+
+                        CreateList.Add(new CreateItem { Url = url, ID = group.Id });
+
+                        foreach (var item in items)
+                        {
+                            //compare group id to the sharepoint list
+                            if (item.Fields.AdditionalData["TeamsID"].ToString() == group.Id)
+                            {
+                                //compare the url
+                                if (item.Fields.AdditionalData["Teamslink"].ToString() != url)
+                                {
+                                    //add to the list to be updated
+                                    item.Fields.AdditionalData["Teamslink"] = url;
+                                    UpdateList.Add(item);
+                                }
+
+                                //remove from the items collection
+                                items.Remove(item);
+
+                                var item1 = CreateList.SingleOrDefault(x => x.ID == group.Id);
+                                CreateList.Remove(item1);
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Skipping Group ID {group.Id} as it is in the exception list.");
                     }
                 }
-                else
+                catch (Exception e)
                 {
-                    _logger.LogInformation($"Skipping Group ID {group.Id} as it is in the exception list.");
+                    _logger.LogError($"Exception: {e.Message}");
+                    _logger.LogError($"StackTrace: {e.StackTrace}");
                 }
             }
 
